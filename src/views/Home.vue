@@ -1,18 +1,39 @@
 <script setup>
 import { ref } from 'vue'
 import Header from '../components/Header.vue';
+
 const curTab = ref('/')
+const isFading = ref(false)
+const isSliding = ref(false)
+
+function handleCalendarClick() {
+  isFading.value = true
+
+  setTimeout(() => {
+    isSliding.value = true
+
+    setTimeout(() => {
+      window.location.href = 'https://calenbar.just-mn.dev'
+    }, 600)
+  }, 500)
+}
 </script>
 
 <template>
   <div class="grid">
-    <div id="vert-line"></div>
-    <div id="hor-line"></div>
-    <Header :currentTab="curTab" />
-    <span class="wip">WIP. Coming  Soon.</span>
-    <span class="under">under construction</span>
-    <h1 class="title">hi, i&rsquo;m denis.</h1>
-    <div class="sub">
+    <div class="overlay" :class="{ 'fading': isFading, 'sliding': isSliding }"></div>
+    <div id="vert-line" :class="{ 'fade-out': isFading }"></div>
+    <div id="hor-line" :class="{ 'fade-out': isFading }"></div>
+    <Header
+      :currentTab="curTab"
+      :isFading="isFading"
+      :isSliding="isSliding"
+      @calendar-click="handleCalendarClick"
+    />
+    <span class="wip" :class="{ 'fade-out': isFading }">WIP. Coming  Soon.</span>
+    <span class="under" :class="{ 'fade-out': isFading }">under construction</span>
+    <h1 class="title" :class="{ 'fade-out': isFading }">hi, i&rsquo;m denis.</h1>
+    <div class="sub" :class="{ 'fade-out': isFading }">
       <p id="sub1">making some useful/useless</p>
       <p id="sub2">and imho.beautiful stuff.</p>
     </div>
@@ -33,6 +54,25 @@ const curTab = ref('/')
   overflow: hidden;
 }
 
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 10;
+  transition: opacity 0.5s ease;
+}
+
+.overlay.fading {
+  opacity: 0.75;
+}
+
+.overlay.sliding {
+  opacity: 1;
+  transition: opacity 0.35s ease;
+}
+
 header {
   grid-column: 1/13;
   grid-row: 1;
@@ -40,7 +80,9 @@ header {
 
 span {
   display: block;
+  transition: opacity 0.45s ease;
 }
+
 .wip {
   grid-column: 7 / 13;
   grid-row: 2;
@@ -64,7 +106,6 @@ span {
 @media (max-width: 1510px) {
   .under {
     grid-column: 10 / 13;
-    
   }
 }
 
@@ -76,6 +117,7 @@ span {
   font-size: 3.2rem;
   margin: 0;
   font-weight: 666;
+  transition: opacity 0.45s ease;
 }
 
 .sub {
@@ -83,6 +125,7 @@ span {
   grid-row: 7;
   margin: 0;
   font-size: 1.5rem;
+  transition: opacity 0.45s ease;
 }
 
 #sub1 {
@@ -94,14 +137,20 @@ span {
 }
 
 #vert-line {
-    grid-column: 2;
-    grid-row: 2 / 13;
-    border-left: 1px solid #4F4F4F;
+  grid-column: 2;
+  grid-row: 2 / 13;
+  border-left: 1px solid #4F4F4F;
+  transition: opacity 0.45s ease;
 }
 
 #hor-line {
-    border-top: 1px solid #4F4F4F;
-    grid-column: 1 / 13;
-    grid-row: 12;
+  border-top: 1px solid #4F4F4F;
+  grid-column: 1 / 13;
+  grid-row: 12;
+  transition: opacity 0.45s ease;
+}
+
+.fade-out {
+  opacity: 0 !important;
 }
 </style>
