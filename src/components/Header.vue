@@ -15,7 +15,7 @@ defineEmits(['calendar-click'])
         <RouterLink to="/">Home</RouterLink>
       </li>
       <li>
-        <a href="#" @click.prevent="$emit('calendar-click')">calenbar</a>
+        <a href="#" @click.prevent="$emit('calendar-click')">CalenBar</a>
       </li>
     </ul>
   </header>
