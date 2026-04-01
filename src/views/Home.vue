@@ -1,10 +1,11 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import Header from '../components/Header.vue';
 
 const curTab = ref('/')
 const isFading = ref(false)
 const isSliding = ref(false)
+const isInstantReset = ref(false)
 
 function handleCalendarClick() {
   isFading.value = true
@@ -17,62 +18,102 @@ function handleCalendarClick() {
     }, 600)
   }, 500)
 }
+
+onMounted(() => {
+  window.addEventListener('pageshow', (e) => {
+    if (e.persisted) {
+      isInstantReset.value = true
+      isFading.value = false
+      isSliding.value = false
+      nextTick(() => {
+        isInstantReset.value = false
+      })
+    }
+  })
+})
 </script>
 
 <template>
-  <div class="grid">
-    <div class="overlay" :class="{ 'fading': isFading, 'sliding': isSliding }"></div>
-    <div id="vert-line" :class="{ 'fade-out': isFading }"></div>
-    <div id="hor-line" :class="{ 'fade-out': isFading }"></div>
-    <Header
-      :currentTab="curTab"
-      :isFading="isFading"
-      :isSliding="isSliding"
-      @calendar-click="handleCalendarClick"
-    />
-    <span class="wip" :class="{ 'fade-out': isFading }">WIP. Coming  Soon.</span>
-    <span class="under" :class="{ 'fade-out': isFading }">under construction</span>
-    <h1 class="title" :class="{ 'fade-out': isFading }">hi, i&rsquo;m denis.</h1>
-    <div class="sub" :class="{ 'fade-out': isFading }">
-      <p id="sub1">making some useful/useless</p>
-      <p id="sub2">and imho.beautiful stuff.</p>
+  <div class="page" :class="{ 'no-transition': isInstantReset }">
+
+    <div class="bg" :class="{ 'fading': isFading }"></div>
+
+    <div class="grid" :class="{ 'fading': isFading }">
+      <div id="vert-line" :class="{ 'fade-out': isFading }"></div>
+      <div id="hor-line" :class="{ 'fade-out': isFading }"></div>
+      <Header
+        :currentTab="curTab"
+        :isFading="isFading"
+        :isSliding="isSliding"
+        @calendar-click="handleCalendarClick"
+      />
+      <span class="wip" :class="{ 'fade-out': isFading }">WIP. Coming  Soon.</span>
+      <span class="under" :class="{ 'fade-out': isFading }">under construction</span>
+      <h1 class="title" :class="{ 'fade-out': isFading }">hi, i&rsquo;m denis.</h1>
+      <div class="sub" :class="{ 'fade-out': isFading }">
+        <p id="sub1">making some useful/useless</p>
+        <p id="sub2">and imho.beautiful stuff.</p>
+      </div>
     </div>
+
   </div>
 </template>
 
 <style scoped>
-.grid {
-  display: grid;
-  grid-template-columns: repeat(12, 1fr);
-  grid-template-rows: repeat(12, 1fr);
+/* ===================== root ===================== */
+.page {
+  position: relative;
   width: 100vw;
   height: 100vh;
-  background: radial-gradient(483.14% 514.26% at 50% 268.58%, #3D9C55 0%, #000000 42.58%);
-  color: #ffffff;
-  font-family: monospace;
-  padding: 0%;
+  background: #000;
   overflow: hidden;
 }
 
-.overlay {
-  position: fixed;
+/* при back/bfcache — мгновенно показываем всё без анимаций */
+.page.no-transition,
+.page.no-transition * {
+  transition: none !important;
+  animation: none !important;
+}
+
+/* ===================== gradient bg ===================== */
+@keyframes bg-enter {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes bg-breathe {
+  0%, 100% { opacity: 1;    }
+  50%       { opacity: 0.72; }
+}
+
+.bg {
+  position: absolute;
   inset: 0;
-  background: #000;
-  opacity: 0;
   pointer-events: none;
-  z-index: 10;
-  transition: opacity 0.5s ease;
+  background: radial-gradient(483.14% 514.26% at 50% 268.58%, #3D9C55 0%, #000000 42.58%);
+  animation: bg-enter 1s ease-out, bg-breathe 5s ease-in-out 3s infinite;
 }
 
-.overlay.fading {
-  opacity: 0.75;
+.bg.fading {
+  animation: none;
+  opacity: 0;
+  transition: opacity 0.85s ease-in;
 }
 
-.overlay.sliding {
-  opacity: 1;
-  transition: opacity 0.35s ease;
+/* ===================== content grid ===================== */
+.grid {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  grid-template-rows: repeat(12, 1fr);
+  color: #ffffff;
+  font-family: monospace;
 }
 
+
+/* ===================== layout ===================== */
 header {
   grid-column: 1/13;
   grid-row: 1;
@@ -104,19 +145,16 @@ span {
 }
 
 @media (max-width: 1510px) {
-  .under {
-    grid-column: 10 / 13;
-  }
+  .under { grid-column: 10 / 13; }
 }
 
 .title {
   grid-column: 2 / 7;
   grid-row: 6;
   align-self: end;
-  font-weight: bold;
+  font-weight: 666;
   font-size: 3.2rem;
   margin: 0;
-  font-weight: 666;
   transition: opacity 0.45s ease;
 }
 
@@ -128,13 +166,8 @@ span {
   transition: opacity 0.45s ease;
 }
 
-#sub1 {
-  align-self: start;
-}
-
-#sub2 {
-  align-self: end;
-}
+#sub1 { align-self: start; }
+#sub2 { align-self: end; }
 
 #vert-line {
   grid-column: 2;
