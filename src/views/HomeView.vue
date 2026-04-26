@@ -1,6 +1,6 @@
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue'
-import Header from '../components/Header.vue';
+import AppHeader from '../components/AppHeader.vue';
 
 const curTab = ref('/')
 const isFading = ref(false)
@@ -41,7 +41,7 @@ onMounted(() => {
     <div class="grid" :class="{ 'fading': isFading }">
       <div id="vert-line" :class="{ 'fade-out': isFading }"></div>
       <div id="hor-line" :class="{ 'fade-out': isFading }"></div>
-      <Header
+      <AppHeader
         :currentTab="curTab"
         :isFading="isFading"
         :isSliding="isSliding"

@@ -1,15 +1,14 @@
-<script setup>
+<script setup lang="ts">
 defineProps({
   currentTab: String,
   isFading: Boolean,
   isSliding: Boolean,
 })
-
 defineEmits(['calendar-click'])
 </script>
 
 <template>
-  <header :class="{ 'slide-up': isSliding }">
+  <header :class="{ 'slide-up': isSliding }" data-component="AppHeader">
     <ul>
       <li :class="{ 'collapse': isFading }">
         <RouterLink to="/">Home</RouterLink>
