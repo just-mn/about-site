@@ -1,20 +1,28 @@
 <script setup lang="ts">
-defineProps({
-  currentTab: String,
-  isFading: Boolean,
-  isSliding: Boolean,
-})
-defineEmits(['calendar-click'])
+import { navigationItems, type NavigationItem } from '../navigation'
+
+defineProps<{
+  activeItemId: string
+  isFading: boolean
+  isSliding: boolean
+}>()
+
+const emit = defineEmits<{
+  navigate: [item: NavigationItem]
+}>()
 </script>
 
 <template>
   <header :class="{ 'slide-up': isSliding }" data-component="AppHeader">
-    <ul>
-      <li :class="{ 'collapse': isFading }">
-        <RouterLink to="/">Home</RouterLink>
-      </li>
-      <li>
-        <a href="#" @click.prevent="$emit('calendar-click')">CalenBar</a>
+    <ul aria-label="Main navigation">
+      <li
+        v-for="item in navigationItems"
+        :key="item.id"
+        :class="{ collapse: isFading && item.id !== activeItemId }"
+      >
+        <a :href="item.href || item.to" @click.prevent="emit('navigate', item)">
+          {{ item.label }}
+        </a>
       </li>
     </ul>
   </header>
@@ -25,10 +33,12 @@ header {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-bottom: 1px solid #4F4F4F;
+  border-bottom: 1px solid #4f4f4f;
   position: relative;
   z-index: 20;
-  transition: transform 0.45s ease, border-color 0.3s ease;
+  transition:
+    transform 0.45s ease,
+    border-color 0.3s ease;
 }
 
 header.slide-up {
@@ -50,7 +60,10 @@ li {
   max-width: 300px;
   opacity: 1;
   white-space: nowrap;
-  transition: max-width 0.4s ease, opacity 0.35s ease, padding 0.4s ease;
+  transition:
+    max-width 0.4s ease,
+    opacity 0.35s ease,
+    padding 0.4s ease;
 }
 
 li.collapse {
