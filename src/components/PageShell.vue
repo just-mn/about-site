@@ -4,9 +4,17 @@ import { useRouter } from 'vue-router'
 import AppHeader from './AppHeader.vue'
 import type { NavigationItem } from '../navigation'
 
-const props = defineProps<{
-  activeItemId: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    activeItemId: string
+    showGridLines?: boolean
+    showNavigation?: boolean
+  }>(),
+  {
+    showGridLines: true,
+    showNavigation: true,
+  },
+)
 
 defineSlots<{
   default(props: { isFading: boolean; navigate: (item: NavigationItem) => void }): unknown
@@ -39,7 +47,10 @@ function navigate(item: NavigationItem) {
       timers.push(
         window.setTimeout(() => {
           if (item.to) {
-            router.push(item.to)
+            router.push({
+              path: item.to,
+              state: { from: router.currentRoute.value.fullPath },
+            })
           } else if (item.href) {
             window.location.assign(item.href)
           }
@@ -71,9 +82,12 @@ onBeforeUnmount(() => {
     <div class="bg" :class="{ fading: isFading }"></div>
 
     <div class="grid">
-      <div id="vert-line" :class="{ 'fade-out': isFading }"></div>
-      <div id="hor-line" :class="{ 'fade-out': isFading }"></div>
+      <template v-if="showGridLines">
+        <div id="vert-line" :class="{ 'fade-out': isFading }"></div>
+        <div id="hor-line" :class="{ 'fade-out': isFading }"></div>
+      </template>
       <AppHeader
+        v-if="showNavigation"
         :active-item-id="selectedItemId"
         :is-fading="isFading"
         :is-sliding="isSliding"
@@ -154,6 +168,7 @@ onBeforeUnmount(() => {
   grid-row: 2 / 13;
   border-left: 1px solid #4f4f4f;
   transition: opacity 0.45s ease;
+  animation: vertical-line-enter 0.8s ease-out both;
 }
 
 #hor-line {
@@ -161,9 +176,43 @@ onBeforeUnmount(() => {
   grid-column: 1 / 13;
   grid-row: 12;
   transition: opacity 0.45s ease;
+  animation: horizontal-line-enter 0.8s 0.1s ease-out both;
 }
 
 .fade-out {
   opacity: 0 !important;
+}
+
+@keyframes vertical-line-enter {
+  from {
+    opacity: 0;
+    transform: scaleY(0);
+    transform-origin: top;
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+    transform-origin: top;
+  }
+}
+
+@keyframes horizontal-line-enter {
+  from {
+    opacity: 0;
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #vert-line,
+  #hor-line {
+    animation: none;
+  }
 }
 </style>

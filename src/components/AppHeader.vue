@@ -39,6 +39,7 @@ header {
   transition:
     transform 0.45s ease,
     border-color 0.3s ease;
+  animation: header-enter 0.5s 0.15s ease-out both;
 }
 
 header.slide-up {
@@ -82,5 +83,20 @@ a {
 
 a:hover {
   opacity: 0.7;
+}
+
+@keyframes header-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  header {
+    animation: none;
+  }
 }
 </style>

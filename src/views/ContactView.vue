@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import PageShell from '../components/PageShell.vue'
 import TurnstileWidget from '../components/TurnstileWidget.vue'
 
@@ -15,6 +16,23 @@ const isLoading = ref(true)
 const isVerifying = ref(false)
 const errorMessage = ref('')
 const turnstile = ref<InstanceType<typeof TurnstileWidget>>()
+const router = useRouter()
+
+function goBack() {
+  const previousPath = window.history.state?.from
+  if (typeof previousPath === 'string' && previousPath.startsWith('/')) {
+    router.push(previousPath)
+    return
+  }
+
+  const referrer = document.referrer ? new URL(document.referrer) : undefined
+  if (referrer?.origin === window.location.origin && referrer.pathname !== '/contact') {
+    router.push(`${referrer.pathname}${referrer.search}${referrer.hash}`)
+    return
+  }
+
+  router.push('/')
+}
 
 async function loadConfiguration() {
   try {
@@ -55,7 +73,12 @@ onMounted(loadConfiguration)
 </script>
 
 <template>
-  <PageShell active-item-id="contact" v-slot="{ isFading }">
+  <PageShell
+    active-item-id="contact"
+    :show-grid-lines="false"
+    :show-navigation="false"
+    v-slot="{ isFading }"
+  >
     <div class="contact-stage" :class="{ 'fade-out': isFading }" aria-hidden="true">
       <div class="orb orb-left"></div>
       <div class="orb orb-right"></div>
@@ -67,6 +90,7 @@ onMounted(loadConfiguration)
       :class="{ 'fade-out': isFading }"
       aria-labelledby="contact-title"
     >
+      <button class="back-button" type="button" @click="goBack">← back</button>
       <p class="eyebrow">private contact card.</p>
       <h1 id="contact-title">let&rsquo;s get in touch.</h1>
 
@@ -113,8 +137,8 @@ onMounted(loadConfiguration)
   width: clamp(22rem, 48vw, 54rem);
   aspect-ratio: 1;
   border-radius: 50%;
-  filter: blur(8px);
-  opacity: 0.96;
+  filter: blur(20px);
+  opacity: 0.8;
 }
 
 .orb-left {
@@ -122,11 +146,13 @@ onMounted(loadConfiguration)
   left: -20rem;
   background: radial-gradient(
     circle,
-    rgb(61 156 85 / 90%) 0%,
-    rgb(61 156 85 / 28%) 42%,
+    rgb(35 203 159 / 78%) 0%,
+    rgb(21 129 111 / 24%) 42%,
     transparent 70%
   );
-  animation: arrive-left 1.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation:
+    arrive-left 1.7s cubic-bezier(0.16, 1, 0.3, 1) both,
+    float-left 9s 1.7s ease-in-out infinite alternate;
 }
 
 .orb-right {
@@ -134,11 +160,13 @@ onMounted(loadConfiguration)
   right: -14rem;
   background: radial-gradient(
     circle,
-    rgb(81 187 111 / 72%) 0%,
-    rgb(35 113 57 / 24%) 45%,
+    rgb(130 103 219 / 72%) 0%,
+    rgb(79 56 151 / 22%) 45%,
     transparent 70%
   );
-  animation: arrive-right 1.8s 0.1s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation:
+    arrive-right 2s 0.1s cubic-bezier(0.16, 1, 0.3, 1) both,
+    float-right 11s 2.1s ease-in-out infinite alternate;
 }
 
 .orb-bottom {
@@ -146,11 +174,13 @@ onMounted(loadConfiguration)
   bottom: -30rem;
   background: radial-gradient(
     circle,
-    rgb(25 112 59 / 85%) 0%,
-    rgb(9 59 31 / 18%) 48%,
+    rgb(226 112 143 / 62%) 0%,
+    rgb(132 52 82 / 18%) 48%,
     transparent 70%
   );
-  animation: arrive-bottom 1.7s 0.05s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation:
+    arrive-bottom 1.9s 0.05s cubic-bezier(0.16, 1, 0.3, 1) both,
+    float-bottom 10s 1.95s ease-in-out infinite alternate;
 }
 
 .contact-modal {
@@ -174,6 +204,21 @@ onMounted(loadConfiguration)
   margin: 0;
   color: rgb(255 255 255 / 55%);
   font-size: 1rem;
+}
+
+.back-button {
+  padding: 0;
+  margin: 0 0 2.5rem;
+  border: 0;
+  color: rgb(255 255 255 / 60%);
+  background: transparent;
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.back-button:hover {
+  color: #fff;
 }
 
 h1 {
@@ -261,6 +306,33 @@ b {
   }
   to {
     transform: translate(-2rem, -16rem);
+  }
+}
+
+@keyframes float-left {
+  from {
+    transform: translate(18rem, 0) scale(1);
+  }
+  to {
+    transform: translate(14rem, -1.5rem) scale(1.05);
+  }
+}
+
+@keyframes float-right {
+  from {
+    transform: translate(-3rem, 16rem) scale(1);
+  }
+  to {
+    transform: translate(1rem, 12rem) scale(1.06);
+  }
+}
+
+@keyframes float-bottom {
+  from {
+    transform: translate(-2rem, -16rem) scale(1);
+  }
+  to {
+    transform: translate(-5rem, -20rem) scale(1.04);
   }
 }
 

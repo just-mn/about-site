@@ -33,6 +33,7 @@ span,
   margin-right: calc(-1 * clamp(0.05em, 1vw, 1.05em));
   font-size: 1.9rem;
   opacity: 0.2;
+  animation: home-enter 0.7s 0.4s ease-out both;
 }
 
 .under {
@@ -43,6 +44,7 @@ span,
   opacity: 0.2;
   justify-self: end;
   margin-right: 0.142em;
+  animation: home-enter 0.7s 0.5s ease-out both;
 }
 
 .title {
@@ -52,6 +54,7 @@ span,
   font-weight: 666;
   font-size: 3.2rem;
   margin: 0;
+  animation: home-enter 0.75s 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .sub {
@@ -59,6 +62,7 @@ span,
   grid-row: 7;
   margin: 0;
   font-size: 1.5rem;
+  animation: home-enter 0.75s 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .sub p {
@@ -79,6 +83,26 @@ span,
 
 .fade-out {
   opacity: 0 !important;
+}
+
+@keyframes home-enter {
+  from {
+    opacity: 0;
+    transform: translateY(1.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wip,
+  .under,
+  .title,
+  .sub {
+    animation: none;
+  }
 }
 
 @media (max-width: 1510px) {
