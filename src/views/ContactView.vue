@@ -1,42 +1,178 @@
 <script setup lang="ts">
+import { onMounted, ref } from 'vue'
 import PageShell from '../components/PageShell.vue'
+import TurnstileWidget from '../components/TurnstileWidget.vue'
 
-// Replace these placeholder values with the contact details you want to share.
-const contactLinks = [
-  { label: 'email', value: 'you@example.com', href: 'mailto:you@example.com' },
-  { label: 'telegram', value: '@your_handle', href: 'https://t.me/your_handle' },
-  { label: 'github', value: 'your-handle', href: 'https://github.com/your-handle' },
-]
+type ContactLink = {
+  label: string
+  value: string
+  href: string
+}
+
+const siteKey = ref('')
+const contacts = ref<ContactLink[]>([])
+const isLoading = ref(true)
+const isVerifying = ref(false)
+const errorMessage = ref('')
+const turnstile = ref<InstanceType<typeof TurnstileWidget>>()
+
+async function loadConfiguration() {
+  try {
+    const response = await fetch('/api/turnstile-config')
+    const data = await response.json()
+    if (!response.ok) throw new Error(data.error)
+    siteKey.value = data.siteKey
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : 'Could not load verification.'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+async function revealContacts(token: string) {
+  isVerifying.value = true
+  errorMessage.value = ''
+
+  try {
+    const response = await fetch('/api/contacts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    })
+    const data = await response.json()
+    if (!response.ok) throw new Error(data.error)
+    contacts.value = data.contacts
+  } catch (error) {
+    errorMessage.value =
+      error instanceof Error ? error.message : 'Verification failed. Please try again.'
+    turnstile.value?.reset()
+  } finally {
+    isVerifying.value = false
+  }
+}
+
+onMounted(loadConfiguration)
 </script>
 
 <template>
   <PageShell active-item-id="contact" v-slot="{ isFading }">
-    <section class="contact" :class="{ 'fade-out': isFading }" aria-labelledby="contact-title">
-      <p class="eyebrow">say hi.</p>
+    <div class="contact-stage" :class="{ 'fade-out': isFading }" aria-hidden="true">
+      <div class="orb orb-left"></div>
+      <div class="orb orb-right"></div>
+      <div class="orb orb-bottom"></div>
+    </div>
+
+    <section
+      class="contact-modal"
+      :class="{ 'fade-out': isFading }"
+      aria-labelledby="contact-title"
+    >
+      <p class="eyebrow">private contact card.</p>
       <h1 id="contact-title">let&rsquo;s get in touch.</h1>
-      <ul>
-        <li v-for="link in contactLinks" :key="link.label">
-          <span>{{ link.label }}</span>
-          <a :href="link.href">{{ link.value }} <b>↗</b></a>
-        </li>
-      </ul>
-      <p class="note">and whatever else you want to leave here.</p>
+
+      <template v-if="contacts.length">
+        <ul>
+          <li v-for="link in contacts" :key="link.label">
+            <span>{{ link.label }}</span>
+            <a :href="link.href">{{ link.value }} <b>↗</b></a>
+          </li>
+        </ul>
+        <p class="note">thanks for stopping by.</p>
+      </template>
+
+      <div v-else class="verification">
+        <p>pass the check to reveal the links.</p>
+        <TurnstileWidget
+          v-if="siteKey"
+          ref="turnstile"
+          :site-key="siteKey"
+          @error="errorMessage = 'Verification expired. Please try again.'"
+          @verified="revealContacts"
+        />
+        <p v-if="isLoading" class="status">loading verification…</p>
+        <p v-else-if="isVerifying" class="status">checking…</p>
+        <p v-else-if="errorMessage" class="status error">{{ errorMessage }}</p>
+      </div>
     </section>
   </PageShell>
 </template>
 
 <style scoped>
-.contact {
-  grid-column: 2 / 8;
-  grid-row: 5 / 10;
+.contact-stage {
+  position: absolute;
+  inset: 0;
+  grid-column: 1 / 13;
+  grid-row: 1 / 13;
+  overflow: hidden;
+  pointer-events: none;
+  transition: opacity 0.45s ease;
+}
+
+.orb {
+  position: absolute;
+  width: clamp(22rem, 48vw, 54rem);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  filter: blur(8px);
+  opacity: 0.96;
+}
+
+.orb-left {
+  top: 12%;
+  left: -20rem;
+  background: radial-gradient(
+    circle,
+    rgb(61 156 85 / 90%) 0%,
+    rgb(61 156 85 / 28%) 42%,
+    transparent 70%
+  );
+  animation: arrive-left 1.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.orb-right {
+  top: -24rem;
+  right: -14rem;
+  background: radial-gradient(
+    circle,
+    rgb(81 187 111 / 72%) 0%,
+    rgb(35 113 57 / 24%) 45%,
+    transparent 70%
+  );
+  animation: arrive-right 1.8s 0.1s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.orb-bottom {
+  right: 16%;
+  bottom: -30rem;
+  background: radial-gradient(
+    circle,
+    rgb(25 112 59 / 85%) 0%,
+    rgb(9 59 31 / 18%) 48%,
+    transparent 70%
+  );
+  animation: arrive-bottom 1.7s 0.05s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.contact-modal {
+  z-index: 1;
+  grid-column: 3 / 11;
+  grid-row: 4 / 10;
   align-self: center;
+  width: min(100%, 42rem);
+  justify-self: center;
+  padding: clamp(1.5rem, 4vw, 3.25rem);
+  border: 1px solid rgb(255 255 255 / 30%);
+  background: rgb(0 0 0 / 45%);
+  box-shadow: 0 2rem 8rem rgb(0 0 0 / 45%);
+  backdrop-filter: blur(20px);
   transition: opacity 0.45s ease;
 }
 
 .eyebrow,
-.note {
+.note,
+.verification p {
   margin: 0;
-  color: rgb(255 255 255 / 45%);
+  color: rgb(255 255 255 / 55%);
   font-size: 1rem;
 }
 
@@ -48,11 +184,10 @@ h1 {
 }
 
 ul {
-  width: min(100%, 38rem);
   padding: 0;
   margin: 0;
   list-style: none;
-  border-top: 1px solid #4f4f4f;
+  border-top: 1px solid rgb(255 255 255 / 30%);
 }
 
 li {
@@ -60,11 +195,11 @@ li {
   justify-content: space-between;
   gap: 2rem;
   padding: 0.85rem 0;
-  border-bottom: 1px solid #4f4f4f;
+  border-bottom: 1px solid rgb(255 255 255 / 30%);
 }
 
 li span {
-  color: rgb(255 255 255 / 45%);
+  color: rgb(255 255 255 / 55%);
 }
 
 a {
@@ -81,6 +216,19 @@ b {
   font-weight: 400;
 }
 
+.verification {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.status {
+  min-height: 1.5rem;
+}
+
+.error {
+  color: #ff9e9e !important;
+}
+
 .note {
   margin-top: 1.5rem;
 }
@@ -89,9 +237,37 @@ b {
   opacity: 0 !important;
 }
 
+@keyframes arrive-left {
+  from {
+    transform: translateX(-50vw);
+  }
+  to {
+    transform: translateX(18rem);
+  }
+}
+
+@keyframes arrive-right {
+  from {
+    transform: translate(50vw, -40vh);
+  }
+  to {
+    transform: translate(-3rem, 16rem);
+  }
+}
+
+@keyframes arrive-bottom {
+  from {
+    transform: translate(20vw, 45vh);
+  }
+  to {
+    transform: translate(-2rem, -16rem);
+  }
+}
+
 @media (max-width: 700px) {
-  .contact {
+  .contact-modal {
     grid-column: 2 / 12;
+    grid-row: 3 / 11;
   }
 
   li {

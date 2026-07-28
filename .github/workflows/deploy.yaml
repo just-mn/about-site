@@ -15,6 +15,8 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - uses: docker/login-action@v4
         with:
@@ -32,18 +34,47 @@ jobs:
 
       - name: Deploy
         uses: appleboy/ssh-action@v1
+        env:
+          TURNSTILE_SITEKEY: ${{ secrets.TURNSTILE_SITEKEY }}
+          TURNSTILE_SECRET: ${{ secrets.TURNSTILE_SECRET }}
+          TURNSTILE_HOSTNAME: ${{ secrets.TURNSTILE_HOSTNAME }}
+          CONTACT_EMAIL: ${{ secrets.CONTACT_EMAIL }}
+          CONTACT_TELEGRAM: ${{ secrets.CONTACT_TELEGRAM }}
+          CONTACT_GITHUB: ${{ secrets.CONTACT_GITHUB }}
+          CONTACT_OTHER_LABEL: ${{ secrets.CONTACT_OTHER_LABEL }}
+          CONTACT_OTHER_VALUE: ${{ secrets.CONTACT_OTHER_VALUE }}
+          CONTACT_OTHER_URL: ${{ secrets.CONTACT_OTHER_URL }}
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: TURNSTILE_SITEKEY,TURNSTILE_SECRET,TURNSTILE_HOSTNAME,CONTACT_EMAIL,CONTACT_TELEGRAM,CONTACT_GITHUB,CONTACT_OTHER_LABEL,CONTACT_OTHER_VALUE,CONTACT_OTHER_URL
           script: |
             set -e
 
             SHA="${{ github.event.workflow_run.head_sha }}"
             IMAGE="ghcr.io/${{ github.repository }}:$SHA"
             CONTAINER="about-site"
+            DEPLOY_DIR="$HOME/.deploy/$CONTAINER"
+            ENV_FILE="$DEPLOY_DIR/runtime.env"
+            DROP_IN_DIR="$HOME/.config/containers/systemd/$CONTAINER.container.d"
 
-            PREV_SHA=$(cat ~/.deploy/$CONTAINER/current_sha 2>/dev/null || echo "")
+            install -d -m 700 "$DEPLOY_DIR" "$DROP_IN_DIR"
+            umask 077
+            printf '%s\n' \
+              "TURNSTILE_SITEKEY=$TURNSTILE_SITEKEY" \
+              "TURNSTILE_SECRET=$TURNSTILE_SECRET" \
+              "TURNSTILE_HOSTNAME=$TURNSTILE_HOSTNAME" \
+              "CONTACT_EMAIL=$CONTACT_EMAIL" \
+              "CONTACT_TELEGRAM=$CONTACT_TELEGRAM" \
+              "CONTACT_GITHUB=$CONTACT_GITHUB" \
+              "CONTACT_OTHER_LABEL=$CONTACT_OTHER_LABEL" \
+              "CONTACT_OTHER_VALUE=$CONTACT_OTHER_VALUE" \
+              "CONTACT_OTHER_URL=$CONTACT_OTHER_URL" > "$ENV_FILE"
+            chmod 600 "$ENV_FILE"
+            printf '[Container]\nEnvironmentFile=%s\n' "$ENV_FILE" > "$DROP_IN_DIR/10-runtime-env.conf"
+
+            PREV_SHA=$(cat "$DEPLOY_DIR/current_sha" 2>/dev/null || echo "")
 
             podman pull $IMAGE
 
@@ -67,7 +98,6 @@ jobs:
             fi
 
             # сохраняем текущий SHA
-            mkdir -p ~/.deploy/$CONTAINER
-            echo "$SHA" > ~/.deploy/$CONTAINER/current_sha
+            echo "$SHA" > "$DEPLOY_DIR/current_sha"
 
             echo "Deploy successful: $SHA"
