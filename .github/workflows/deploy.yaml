@@ -74,7 +74,7 @@ jobs:
             # setting in the source unit so every supported Podman version passes
             # the runtime environment file to `podman run`.
             if ! grep -Fqx "EnvironmentFile=$ENV_FILE" "$UNIT_FILE"; then
-              sed -i "/^Image=ghcr.io/${{ github.repository }}:/a EnvironmentFile=$ENV_FILE" "$UNIT_FILE"
+              sed -i "\|^Image=ghcr.io/${{ github.repository }}:|a EnvironmentFile=$ENV_FILE" "$UNIT_FILE"
             fi
 
             PREV_SHA=$(cat "$DEPLOY_DIR/current_sha" 2>/dev/null || echo "")
