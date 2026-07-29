@@ -38,17 +38,12 @@ jobs:
           TURNSTILE_SITEKEY: ${{ secrets.TURNSTILE_SITEKEY }}
           TURNSTILE_SECRET: ${{ secrets.TURNSTILE_SECRET }}
           TURNSTILE_HOSTNAME: ${{ secrets.TURNSTILE_HOSTNAME }}
-          CONTACT_EMAIL: ${{ secrets.CONTACT_EMAIL }}
-          CONTACT_TELEGRAM: ${{ secrets.CONTACT_TELEGRAM }}
-          CONTACT_GITHUB: ${{ secrets.CONTACT_GITHUB }}
-          CONTACT_OTHER_LABEL: ${{ secrets.CONTACT_OTHER_LABEL }}
-          CONTACT_OTHER_VALUE: ${{ secrets.CONTACT_OTHER_VALUE }}
-          CONTACT_OTHER_URL: ${{ secrets.CONTACT_OTHER_URL }}
+          CONTACT_LINKS_JSON: ${{ secrets.CONTACT_LINKS_JSON }}
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: TURNSTILE_SITEKEY,TURNSTILE_SECRET,TURNSTILE_HOSTNAME,CONTACT_EMAIL,CONTACT_TELEGRAM,CONTACT_GITHUB,CONTACT_OTHER_LABEL,CONTACT_OTHER_VALUE,CONTACT_OTHER_URL
+          envs: TURNSTILE_SITEKEY,TURNSTILE_SECRET,TURNSTILE_HOSTNAME,CONTACT_LINKS_JSON
           script: |
             set -e
 
@@ -61,16 +56,12 @@ jobs:
 
             install -d -m 700 "$DEPLOY_DIR" "$DROP_IN_DIR"
             umask 077
+            CONTACT_LINKS_B64="$(printf '%s' "$CONTACT_LINKS_JSON" | base64 | tr -d '\n')"
             printf '%s\n' \
               "TURNSTILE_SITEKEY=$TURNSTILE_SITEKEY" \
               "TURNSTILE_SECRET=$TURNSTILE_SECRET" \
               "TURNSTILE_HOSTNAME=$TURNSTILE_HOSTNAME" \
-              "CONTACT_EMAIL=$CONTACT_EMAIL" \
-              "CONTACT_TELEGRAM=$CONTACT_TELEGRAM" \
-              "CONTACT_GITHUB=$CONTACT_GITHUB" \
-              "CONTACT_OTHER_LABEL=$CONTACT_OTHER_LABEL" \
-              "CONTACT_OTHER_VALUE=$CONTACT_OTHER_VALUE" \
-              "CONTACT_OTHER_URL=$CONTACT_OTHER_URL" > "$ENV_FILE"
+              "CONTACT_LINKS_B64=$CONTACT_LINKS_B64" > "$ENV_FILE"
             chmod 600 "$ENV_FILE"
             printf '[Container]\nEnvironmentFile=%s\n' "$ENV_FILE" > "$DROP_IN_DIR/10-runtime-env.conf"
 

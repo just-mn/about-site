@@ -12,6 +12,7 @@ type ContactLink = {
 
 const siteKey = ref('')
 const contacts = ref<ContactLink[]>([])
+const areContactsRevealed = ref(false)
 const isVerifying = ref(false)
 const isLeaving = ref(false)
 const errorMessage = ref('')
@@ -82,6 +83,7 @@ async function revealContacts(token: string) {
 async function revealContactDetails(nextContacts: ContactLink[]) {
   await animateModalChange(() => {
     contacts.value = nextContacts
+    areContactsRevealed.value = true
   })
 }
 
@@ -150,13 +152,14 @@ onBeforeUnmount(() => window.clearTimeout(returnTimer))
       </button>
       <h1 id="contact-title">let&rsquo;s get in touch.</h1>
 
-      <div v-if="contacts.length" class="contact-details">
-        <ul>
+      <div v-if="areContactsRevealed" class="contact-details">
+        <ul v-if="contacts.length">
           <li v-for="link in contacts" :key="link.label">
             <span>{{ link.label }}</span>
             <a :href="link.href">{{ link.value }} <b>↗</b></a>
           </li>
         </ul>
+        <p v-else class="status">no contact links are configured.</p>
       </div>
 
       <div v-else class="verification">

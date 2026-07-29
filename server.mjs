@@ -2,6 +2,7 @@ import { createReadStream } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { extname, join, normalize } from 'node:path'
+import { parseConfiguredContactLinks } from './contact-links.mjs'
 
 const port = Number(process.env.PORT || 80)
 const publicDirectory = join(process.cwd(), 'dist')
@@ -35,30 +36,16 @@ function getConfiguration() {
 }
 
 function getContactLinks() {
-  const links = [
-    ['email', process.env.CONTACT_EMAIL, (value) => `mailto:${value}`],
-    [
-      'telegram',
-      process.env.CONTACT_TELEGRAM,
-      (value) => `https://t.me/${value.replace(/^@/, '')}`,
-    ],
-    [
-      'github',
-      process.env.CONTACT_GITHUB,
-      (value) => `https://github.com/${value.replace(/^@/, '')}`,
-    ],
-  ]
-    .filter(([, value]) => value)
-    .map(([label, value, toHref]) => ({ label, value, href: toHref(value) }))
-
-  const otherLabel = process.env.CONTACT_OTHER_LABEL
-  const otherValue = process.env.CONTACT_OTHER_VALUE
-  const otherUrl = process.env.CONTACT_OTHER_URL
-  if (otherLabel && otherValue && /^https?:\/\//.test(otherUrl || '')) {
-    links.push({ label: otherLabel, value: otherValue, href: otherUrl })
+  const configuredLinks = parseConfiguredContactLinks(
+    process.env.CONTACT_LINKS_B64
+      ? Buffer.from(process.env.CONTACT_LINKS_B64, 'base64').toString('utf8')
+      : process.env.CONTACT_LINKS_JSON,
+  )
+  if (configuredLinks.isConfigured) {
+    if (configuredLinks.error) throw new Error(configuredLinks.error)
+    return configuredLinks.links
   }
-
-  return links
+  throw new Error('CONTACT_LINKS_JSON is not configured.')
 }
 
 function getClientIp(request) {
