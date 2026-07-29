@@ -6,6 +6,8 @@ Contact details are served only after the server verifies a Cloudflare Turnstile
 - `TURNSTILE_SECRET` — the private Turnstile secret key.
 - `TURNSTILE_HOSTNAME` — the production hostname configured in Turnstile.
 - `CONTACT_LINKS_JSON` — one JSON array with every contact row. This is the preferred option: add, remove, or reorder rows by changing this one secret, without changing code. The deploy workflow base64-encodes it before placing it in the server's environment file.
+- `GHCR_USERNAME` — GitHub username that owns the pull token.
+- `GHCR_PULL_TOKEN` — a GitHub personal access token (classic) with only the `read:packages` scope. It is passed to the deployment host only for the deploy command and is stored there in Podman's `0600` authentication file.
 
 For example, create one GitHub Actions secret named `CONTACT_LINKS_JSON` with this single-line value:
 
