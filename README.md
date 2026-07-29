@@ -20,4 +20,4 @@ For example, create one GitHub Actions secret named `CONTACT_LINKS_JSON` with th
 
 Every item needs `label`, `value`, and `href`. `https`, `http`, `mailto`, and `tel` links are allowed. An empty array (`[]`) intentionally shows no links. Invalid JSON makes the API return an error rather than revealing an incomplete list.
 
-For local development, the server uses Cloudflare's always-pass test credentials. Production requires the GitHub secrets above. Keep `CONTACT_LINKS_JSON` on one line.
+For local development, the server uses Cloudflare's always-pass test credentials. Production requires all of the secrets above: it refuses to start contact verification without `TURNSTILE_HOSTNAME`, and it rejects Cloudflare's public test credentials. Keep `CONTACT_LINKS_JSON` on one line.

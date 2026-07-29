@@ -31,8 +31,16 @@ function json(response, status, body) {
 function getConfiguration() {
   const siteKey = process.env.TURNSTILE_SITEKEY || (isProduction ? '' : developmentSiteKey)
   const secret = process.env.TURNSTILE_SECRET || (isProduction ? '' : developmentSecret)
+  const hostname = process.env.TURNSTILE_HOSTNAME || ''
 
-  return { siteKey, secret }
+  return { hostname, secret, siteKey }
+}
+
+function isTurnstileConfigured({ hostname, secret, siteKey }) {
+  if (!siteKey || !secret) return false
+  if (!isProduction) return true
+
+  return Boolean(hostname) && siteKey !== developmentSiteKey && secret !== developmentSecret
 }
 
 function getContactLinks() {
@@ -63,8 +71,11 @@ async function readJson(request) {
 }
 
 async function verifyTurnstile(token, request) {
-  const { secret } = getConfiguration()
-  if (!secret || typeof token !== 'string' || token.length > 2048) return false
+  const configuration = getConfiguration()
+  const { hostname, secret } = configuration
+  if (!isTurnstileConfigured(configuration) || typeof token !== 'string' || token.length > 2048) {
+    return false
+  }
 
   const formData = new URLSearchParams({ secret, response: token })
   const remoteIp = getClientIp(request)
@@ -77,13 +88,12 @@ async function verifyTurnstile(token, request) {
     signal: AbortSignal.timeout(10_000),
   })
   const result = await response.json()
-  const expectedHostname = process.env.TURNSTILE_HOSTNAME
-  const isTestSecret = secret === developmentSecret
+  const isDevelopmentTestSecret = !isProduction && secret === developmentSecret
 
   return (
     result.success &&
-    (isTestSecret || result.action === 'view_contacts') &&
-    (!expectedHostname || result.hostname === expectedHostname)
+    (isDevelopmentTestSecret || result.action === 'view_contacts') &&
+    (!isProduction || result.hostname === hostname)
   )
 }
 
@@ -110,8 +120,11 @@ createServer(async (request, response) => {
   const url = new URL(request.url || '/', `http://${request.headers.host || 'localhost'}`)
 
   if (request.method === 'GET' && url.pathname === '/api/turnstile-config') {
-    const { siteKey } = getConfiguration()
-    if (!siteKey) return json(response, 503, { error: 'Contact verification is not configured.' })
+    const configuration = getConfiguration()
+    if (!isTurnstileConfigured(configuration)) {
+      return json(response, 503, { error: 'Contact verification is not configured.' })
+    }
+    const { siteKey } = configuration
     return json(response, 200, { siteKey })
   }
 
