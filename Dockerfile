@@ -9,6 +9,6 @@ FROM node:20-alpine
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=builder /app/dist ./dist
-COPY server.mjs ./server.mjs
+COPY server.mjs contact-links.mjs ./
 EXPOSE 80
 CMD ["node", "server.mjs"]

@@ -80,17 +80,28 @@ jobs:
               ~/.config/containers/systemd/$CONTAINER.container
 
             systemctl --user daemon-reload
-            systemctl --user restart $CONTAINER
+            if ! systemctl --user restart "$CONTAINER"; then
+              echo "Failed to restart $CONTAINER."
+              systemctl --user status "$CONTAINER" --no-pager || true
+              journalctl --user --unit "$CONTAINER" --lines 100 --no-pager || true
+              exit 1
+            fi
             sleep 5
 
-            STATUS=$(systemctl --user is-active $CONTAINER)
-            if [ "$STATUS" != "active" ]; then
+            if ! systemctl --user is-active --quiet "$CONTAINER"; then
               echo "Deploy failed, rolling back to $PREV_SHA..."
-              PREV_IMAGE="ghcr.io/${{ github.repository }}:$PREV_SHA"
-              sed -i "s|Image=ghcr.io/${{ github.repository }}:.*|Image=$PREV_IMAGE|" \
-                ~/.config/containers/systemd/$CONTAINER.container
-              systemctl --user daemon-reload
-              systemctl --user restart $CONTAINER
+              systemctl --user status "$CONTAINER" --no-pager || true
+              journalctl --user --unit "$CONTAINER" --lines 100 --no-pager || true
+
+              if [ -n "$PREV_SHA" ]; then
+                PREV_IMAGE="ghcr.io/${{ github.repository }}:$PREV_SHA"
+                sed -i "s|Image=ghcr.io/${{ github.repository }}:.*|Image=$PREV_IMAGE|" \
+                  ~/.config/containers/systemd/$CONTAINER.container
+                systemctl --user daemon-reload
+                systemctl --user restart "$CONTAINER" || true
+              else
+                echo "No previous image is available for rollback."
+              fi
               exit 1
             fi
 
