@@ -7,10 +7,12 @@ import type { NavigationItem } from '../navigation'
 const props = withDefaults(
   defineProps<{
     activeItemId: string
+    showBackground?: boolean
     showGridLines?: boolean
     showNavigation?: boolean
   }>(),
   {
+    showBackground: true,
     showGridLines: true,
     showNavigation: true,
   },
@@ -79,7 +81,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="page" :class="{ 'no-transition': isInstantReset }">
-    <div class="bg" :class="{ fading: isFading }"></div>
+    <div v-if="showBackground" class="bg" :class="{ fading: isFading }"></div>
 
     <div class="grid">
       <template v-if="showGridLines">

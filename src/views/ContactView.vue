@@ -75,6 +75,7 @@ onMounted(loadConfiguration)
 <template>
   <PageShell
     active-item-id="contact"
+    :show-background="false"
     :show-grid-lines="false"
     :show-navigation="false"
     v-slot="{ isFading }"
