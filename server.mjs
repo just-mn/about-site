@@ -91,10 +91,11 @@ async function verifyTurnstile(token, request) {
   })
   const result = await response.json()
   const expectedHostname = process.env.TURNSTILE_HOSTNAME
+  const isTestSecret = secret === developmentSecret
 
   return (
     result.success &&
-    result.action === 'view_contacts' &&
+    (isTestSecret || result.action === 'view_contacts') &&
     (!expectedHostname || result.hostname === expectedHostname)
   )
 }
