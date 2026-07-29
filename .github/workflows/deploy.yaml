@@ -54,10 +54,10 @@ jobs:
             CONTAINER="about-site"
             DEPLOY_DIR="$HOME/.deploy/$CONTAINER"
             ENV_FILE="$DEPLOY_DIR/runtime.env"
-            DROP_IN_DIR="$HOME/.config/containers/systemd/$CONTAINER.container.d"
+            UNIT_FILE="$HOME/.config/containers/systemd/$CONTAINER.container"
             REGISTRY_AUTH_FILE="$HOME/.config/containers/auth.json"
 
-            install -d -m 700 "$DEPLOY_DIR" "$DROP_IN_DIR" "$(dirname "$REGISTRY_AUTH_FILE")"
+            install -d -m 700 "$DEPLOY_DIR" "$(dirname "$UNIT_FILE")" "$(dirname "$REGISTRY_AUTH_FILE")"
             umask 077
             printf '%s' "$GHCR_PULL_TOKEN" | podman login --authfile "$REGISTRY_AUTH_FILE" \
               --username "$GHCR_USERNAME" --password-stdin ghcr.io
@@ -69,7 +69,13 @@ jobs:
               "TURNSTILE_HOSTNAME=$TURNSTILE_HOSTNAME" \
               "CONTACT_LINKS_B64=$CONTACT_LINKS_B64" > "$ENV_FILE"
             chmod 600 "$ENV_FILE"
-            printf '[Container]\nEnvironmentFile=%s\n' "$ENV_FILE" > "$DROP_IN_DIR/10-runtime-env.conf"
+
+            # Podman 4.9 does not merge Quadlet .container.d drop-ins. Keep this
+            # setting in the source unit so every supported Podman version passes
+            # the runtime environment file to `podman run`.
+            if ! grep -Fqx "EnvironmentFile=$ENV_FILE" "$UNIT_FILE"; then
+              sed -i "/^Image=ghcr.io/${{ github.repository }}:/a EnvironmentFile=$ENV_FILE" "$UNIT_FILE"
+            fi
 
             PREV_SHA=$(cat "$DEPLOY_DIR/current_sha" 2>/dev/null || echo "")
 
@@ -77,7 +83,7 @@ jobs:
 
             # обновляем юнит на новый образ
             sed -i "s|Image=ghcr.io/${{ github.repository }}:.*|Image=$IMAGE|" \
-              ~/.config/containers/systemd/$CONTAINER.container
+              "$UNIT_FILE"
 
             systemctl --user daemon-reload
             if ! systemctl --user restart "$CONTAINER"; then
@@ -96,7 +102,7 @@ jobs:
               if [ -n "$PREV_SHA" ]; then
                 PREV_IMAGE="ghcr.io/${{ github.repository }}:$PREV_SHA"
                 sed -i "s|Image=ghcr.io/${{ github.repository }}:.*|Image=$PREV_IMAGE|" \
-                  ~/.config/containers/systemd/$CONTAINER.container
+                  "$UNIT_FILE"
                 systemctl --user daemon-reload
                 systemctl --user restart "$CONTAINER" || true
               else
