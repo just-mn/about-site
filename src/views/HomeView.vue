@@ -33,7 +33,7 @@ span,
   margin-right: calc(-1 * clamp(0.05em, 1vw, 1.05em));
   font-size: 1.9rem;
   opacity: 0.2;
-  animation: home-enter 0.7s 0.4s ease-out both;
+  animation: home-enter-muted 0.7s 0.4s ease-out both;
 }
 
 .under {
@@ -44,7 +44,7 @@ span,
   opacity: 0.2;
   justify-self: end;
   margin-right: 0.142em;
-  animation: home-enter 0.7s 0.5s ease-out both;
+  animation: home-enter-muted 0.7s 0.5s ease-out both;
 }
 
 .title {
@@ -92,6 +92,17 @@ span,
   }
   to {
     opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes home-enter-muted {
+  from {
+    opacity: 0;
+    transform: translateY(1.25rem);
+  }
+  to {
+    opacity: 0.2;
     transform: translateY(0);
   }
 }

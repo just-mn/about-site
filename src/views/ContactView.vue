@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import PageShell from '../components/PageShell.vue'
 import TurnstileWidget from '../components/TurnstileWidget.vue'
@@ -12,26 +12,33 @@ type ContactLink = {
 
 const siteKey = ref('')
 const contacts = ref<ContactLink[]>([])
-const isLoading = ref(true)
 const isVerifying = ref(false)
+const isLeaving = ref(false)
 const errorMessage = ref('')
 const turnstile = ref<InstanceType<typeof TurnstileWidget>>()
+const modal = ref<HTMLElement>()
 const router = useRouter()
+let returnTimer: number | undefined
 
-function goBack() {
+function getReturnPath() {
   const previousPath = window.history.state?.from
   if (typeof previousPath === 'string' && previousPath.startsWith('/')) {
-    router.push(previousPath)
-    return
+    return previousPath
   }
 
   const referrer = document.referrer ? new URL(document.referrer) : undefined
   if (referrer?.origin === window.location.origin && referrer.pathname !== '/contact') {
-    router.push(`${referrer.pathname}${referrer.search}${referrer.hash}`)
-    return
+    return `${referrer.pathname}${referrer.search}${referrer.hash}`
   }
 
-  router.push('/')
+  return '/'
+}
+
+function goBack() {
+  if (isLeaving.value) return
+
+  isLeaving.value = true
+  returnTimer = window.setTimeout(() => router.push(getReturnPath()), 450)
 }
 
 async function loadConfiguration() {
@@ -41,13 +48,15 @@ async function loadConfiguration() {
     if (!response.ok) throw new Error(data.error)
     siteKey.value = data.siteKey
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Could not load verification.'
-  } finally {
-    isLoading.value = false
+    await showVerificationError(
+      error instanceof Error ? error.message : 'Could not load verification.',
+    )
   }
 }
 
 async function revealContacts(token: string) {
+  if (isVerifying.value) return
+
   isVerifying.value = true
   errorMessage.value = ''
 
@@ -59,17 +68,57 @@ async function revealContacts(token: string) {
     })
     const data = await response.json()
     if (!response.ok) throw new Error(data.error)
-    contacts.value = data.contacts
+    await revealContactDetails(data.contacts)
   } catch (error) {
-    errorMessage.value =
-      error instanceof Error ? error.message : 'Verification failed. Please try again.'
+    await showVerificationError(
+      error instanceof Error ? error.message : 'Verification failed. Please try again.',
+    )
     turnstile.value?.reset()
   } finally {
     isVerifying.value = false
   }
 }
 
+async function revealContactDetails(nextContacts: ContactLink[]) {
+  await animateModalChange(() => {
+    contacts.value = nextContacts
+  })
+}
+
+async function showVerificationError(message: string) {
+  await animateModalChange(() => {
+    errorMessage.value = message
+  })
+}
+
+async function animateModalChange(change: () => void) {
+  const element = modal.value
+  const previousHeight = element?.getBoundingClientRect().height
+
+  change()
+  await nextTick()
+
+  if (!element || !previousHeight) return
+
+  element.style.height = 'auto'
+  const nextHeight = element.getBoundingClientRect().height
+  if (Math.abs(nextHeight - previousHeight) < 1) return
+
+  element.style.height = `${previousHeight}px`
+  void element.offsetHeight
+  window.requestAnimationFrame(() => {
+    element.style.height = `${nextHeight}px`
+    const resetHeight = (event: TransitionEvent) => {
+      if (event.propertyName !== 'height') return
+      element.style.height = ''
+      element.removeEventListener('transitionend', resetHeight)
+    }
+    element.addEventListener('transitionend', resetHeight)
+  })
+}
+
 onMounted(loadConfiguration)
+onBeforeUnmount(() => window.clearTimeout(returnTimer))
 </script>
 
 <template>
@@ -80,7 +129,11 @@ onMounted(loadConfiguration)
     :show-navigation="false"
     v-slot="{ isFading }"
   >
-    <div class="contact-stage" :class="{ 'fade-out': isFading }" aria-hidden="true">
+    <div
+      class="contact-stage"
+      :class="{ 'fade-out': isFading, 'is-leaving': isLeaving }"
+      aria-hidden="true"
+    >
       <div class="orb orb-left"></div>
       <div class="orb orb-right"></div>
       <div class="orb orb-bottom"></div>
@@ -88,35 +141,38 @@ onMounted(loadConfiguration)
 
     <section
       class="contact-modal"
-      :class="{ 'fade-out': isFading }"
+      ref="modal"
+      :class="{ 'fade-out': isFading, 'is-leaving': isLeaving }"
       aria-labelledby="contact-title"
     >
-      <button class="back-button" type="button" @click="goBack">← back</button>
-      <p class="eyebrow">private contact card.</p>
+      <button class="back-button" type="button" :disabled="isLeaving" @click="goBack">
+        ← back
+      </button>
       <h1 id="contact-title">let&rsquo;s get in touch.</h1>
 
-      <template v-if="contacts.length">
+      <div v-if="contacts.length" class="contact-details">
         <ul>
           <li v-for="link in contacts" :key="link.label">
             <span>{{ link.label }}</span>
             <a :href="link.href">{{ link.value }} <b>↗</b></a>
           </li>
         </ul>
-        <p class="note">thanks for stopping by.</p>
-      </template>
+      </div>
 
       <div v-else class="verification">
         <p>pass the check to reveal the links.</p>
-        <TurnstileWidget
-          v-if="siteKey"
-          ref="turnstile"
-          :site-key="siteKey"
-          @error="errorMessage = 'Verification expired. Please try again.'"
-          @verified="revealContacts"
-        />
-        <p v-if="isLoading" class="status">loading verification…</p>
-        <p v-else-if="isVerifying" class="status">checking…</p>
-        <p v-else-if="errorMessage" class="status error">{{ errorMessage }}</p>
+        <div class="turnstile-slot">
+          <TurnstileWidget
+            v-if="siteKey"
+            ref="turnstile"
+            :site-key="siteKey"
+            @error="showVerificationError('Verification expired. Please try again.')"
+            @verified="revealContacts"
+          />
+        </div>
+        <p v-if="errorMessage" class="status error">
+          {{ errorMessage }}
+        </p>
       </div>
     </section>
   </PageShell>
@@ -131,6 +187,7 @@ onMounted(loadConfiguration)
   overflow: hidden;
   pointer-events: none;
   transition: opacity 0.45s ease;
+  animation: contact-stage-enter 0.7s ease-out both;
 }
 
 .orb {
@@ -190,17 +247,28 @@ onMounted(loadConfiguration)
   grid-row: 4 / 10;
   align-self: center;
   width: min(100%, 42rem);
+  box-sizing: border-box;
   justify-self: center;
   padding: clamp(1.5rem, 4vw, 3.25rem);
   border: 1px solid rgb(255 255 255 / 30%);
   background: rgb(0 0 0 / 45%);
   box-shadow: 0 2rem 8rem rgb(0 0 0 / 45%);
   backdrop-filter: blur(20px);
-  transition: opacity 0.45s ease;
+  transition:
+    height 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.45s ease;
+  animation: contact-modal-enter 0.65s 0.15s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.eyebrow,
-.note,
+.contact-stage.is-leaving {
+  animation: contact-stage-exit 0.45s ease-in both;
+}
+
+.contact-modal.is-leaving {
+  pointer-events: none;
+  animation: contact-modal-exit 0.45s ease-in both;
+}
+
 .verification p {
   margin: 0;
   color: rgb(255 255 255 / 55%);
@@ -220,6 +288,10 @@ onMounted(loadConfiguration)
 
 .back-button:hover {
   color: #fff;
+}
+
+.back-button:disabled {
+  cursor: default;
 }
 
 h1 {
@@ -267,20 +339,64 @@ b {
   gap: 1.25rem;
 }
 
-.status {
-  min-height: 1.5rem;
+.contact-details {
+  animation: contact-content-enter 0.35s 0.1s ease-out both;
+}
+
+.turnstile-slot {
+  min-height: 65px;
 }
 
 .error {
   color: #ff9e9e !important;
 }
 
-.note {
-  margin-top: 1.5rem;
-}
-
 .fade-out {
   opacity: 0 !important;
+}
+
+@keyframes contact-stage-exit {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes contact-stage-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes contact-modal-enter {
+  from {
+    opacity: 0;
+    transform: translateY(1rem) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes contact-modal-exit {
+  to {
+    opacity: 0;
+    transform: translateY(-0.75rem) scale(0.98);
+  }
+}
+
+@keyframes contact-content-enter {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes arrive-left {
@@ -351,6 +467,13 @@ b {
 
   a {
     text-align: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .contact-stage,
+  .contact-modal {
+    animation: none;
   }
 }
 </style>
